@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="财务管家">
+<meta name="theme-color" content="#0d1117">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<title>财务管家</title>
+<style>
+:root{--bg:#0d1117;--cbg:#161b22;--brd:#30363d;--tx:#c9d1d9;--t2:#8b949e;--r:#da3633;--o:#d29922;--g:#3fb950;--bl:#58a6ff;--go:#e3b341;--pu:#a371f7;--rds:12px;--rds-sm:8px;--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,12px)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding:calc(12px + var(--st)) 12px calc(80px + var(--sb));-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+.container{max-width:720px;margin:0 auto}
+
+/* Tab navigation */
+.tab-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:150;
+  background:var(--cbg);border-top:1px solid var(--brd);
+  display:flex;justify-content:space-around;
+  padding:6px 0 calc(6px + var(--sb));
+}
+.tab-btn{
+  background:none;border:none;color:var(--t2);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:6px 12px;transition:color .15s;font-family:inherit;
+  -webkit-tap-highlight-color:transparent;
+}
+.tab-btn.active{color:var(--go)}
+.tab-btn .tab-icon{font-size:22px;line-height:1}
+.tab-btn .tab-label{font-size:10px}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;padding:4px 0 10px}
+.header h1{font-size:22px;font-weight:700;background:linear-gradient(135deg,var(--go),#f0883e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header-date{font-size:11px;color:var(--t2)}
+
+/* Page sections */
+.page{display:none}
+.page.active{display:block}
+
+/* Summary cards */
+.summary{display:grid;gap:10px;margin-bottom:14px}
+.summary.cols2{grid-template-columns:1fr 1fr}
+.summary.cols3{grid-template-columns:1fr 1fr 1fr}
+.stat-card{background:var(--cbg);border:1px solid var(--brd);border-radius:var(--rds-sm);padding:14px 10px;text-align:center}
+.stat-num{font-size:26px;font-weight:700;line-height:1.2}
+.stat-label{font-size:10px;color:var(--t2);margin-top:3px}
+.stat-card.tap{cursor:pointer;transition:border-color .15s}
+.stat-card.tap:active{opacity:.8}
+.stat-card.tap.active{border-color:var(--bl)}
+
+/* Filter chips */
+.filter-bar{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.filter-bar::-webkit-scrollbar{display:none}
+.filter-chip{flex-shrink:0;padding:5px 12px;border-radius:14px;font-size:11px;font-weight:500;border:1px solid var(--brd);background:none;color:var(--t2);cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.filter-chip.active{border-color:var(--bl);background:rgba(88,166,255,.1);color:var(--bl)}
+.filter-chip .chip-badge{display:inline-block;min-width:14px;height:14px;line-height:14px;text-align:center;border-radius:7px;font-size:9px;margin-left:4px;padding:0 3px;background:var(--brd)}
+
+/* Section title */
+.section-title{font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px}
+
+/* List items */
+.list-item{
+  background:var(--cbg);border:1px solid var(--brd);border-radius:var(--rds);
+  padding:14px;margin-bottom:10px;position:relative;overflow:hidden;
+  transition:border-color .15s
+}
+.list-item.urgent{border-color:rgba(218,54,51,.35)}
+.list-item.urgent::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--r)}
+.list-item.warning{border-color:rgba(210,153,34,.3)}
+.list-item.warning::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--o)}
+
+.item-row{display:flex;justify-content:space-between;align-items:center}
+.item-left{flex:1;min-width:0}
+.item-tag{font-size:10px;color:var(--bl);text-transform:uppercase;letter-spacing:.5px}
+.item-name{font-size:15px;font-weight:600;margin:1px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item-sub{font-size:11px;color:var(--t2)}
+.item-right{text-align:right;flex-shrink:0}
+.item-amount{font-size:17px;font-weight:700}
+.item-amount.pos{color:var(--g)}.item-amount.neg{color:var(--r)}.item-amount.warn{color:var(--o)}
+
+.item-actions{display:flex;gap:4px;margin-left:8px}
+.btn-sm{background:none;border:1px solid var(--brd);color:var(--t2);width:26px;height:26px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px}
+.btn-sm:active{border-color:var(--t2);color:var(--tx)}
+.btn-sm.danger:active{border-color:var(--r);color:var(--r)}
+
+/* Card item (credit) */
+.card-item{
+  background:var(--cbg);border:1px solid var(--brd);border-radius:var(--rds);
+  padding:16px;margin-bottom:10px;position:relative;overflow:hidden;
+  cursor:pointer;transition:border-color .15s
+}
+.card-item::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%}
+.card-item.urgent{border-color:rgba(218,54,51,.35)}.card-item.urgent::before{background:var(--r)}
+.card-item.warning{border-color:rgba(210,153,34,.3)}.card-item.warning::before{background:var(--o)}
+.card-item .expand-icon{position:absolute;right:12px;top:16px;font-size:10px;color:var(--t2);transition:transform .2s}
+.card-item.expanded .expand-icon{transform:rotate(180deg)}
+
+.card-bank{font-size:10px;color:var(--bl);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px}
+.card-name{font-size:16px;font-weight:600}
+.card-tail{font-size:11px;color:var(--t2);margin-top:1px}
+.card-actions{display:flex;gap:4px}
+
+.card-dates{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.date-block{background:rgba(255,255,255,.025);border-radius:var(--rds-sm);padding:8px 10px;text-align:center}
+.date-label{font-size:9px;color:var(--t2);margin-bottom:1px}
+.date-value{font-size:10px;color:var(--t2)}
+.date-countdown{font-size:24px;font-weight:700;line-height:1.15;margin:1px 0 0}
+.date-countdown.urgent{color:var(--r)}.date-countdown.warning{color:var(--o)}.date-countdown.safe{color:var(--g)}
+
+.cycle-bar{margin-top:8px;height:3px;background:var(--brd);border-radius:2px;overflow:hidden}
+.cycle-bar-fill{height:100%;background:var(--bl);border-radius:2px;transition:width .3s}
+.cycle-info{display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:var(--t2)}
+
+.card-tip{margin-top:8px;padding:7px 9px;border-radius:var(--rds-sm);font-size:11px;line-height:1.4}
+.card-tip.t-r{background:rgba(218,54,51,.07);color:var(--r)}
+.card-tip.t-b{background:rgba(88,166,255,.07);color:var(--bl)}
+.card-tip.t-g{background:rgba(63,185,80,.07);color:var(--g)}
+
+.card-detail{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--brd)}
+.card-item.expanded .card-detail{display:block}
+.tap-hint{font-size:9px;color:var(--t2);text-align:center;margin-top:6px;opacity:.5}
+
+/* FAB */
+.fab{position:fixed;bottom:calc(80px + var(--sb));right:16px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--go),#f0883e);border:none;color:#0d1117;font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(227,179,65,.35);display:flex;align-items:center;justify-content:center;z-index:100;transition:transform .15s}
+.fab:active{transform:scale(.9)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:var(--cbg);width:100%;max-width:500px;border-radius:var(--rds) var(--rds) 0 0;padding:24px 20px 32px;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:slideUp .25s ease-out}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal h2{font-size:17px;margin-bottom:16px}
+.fg{margin-bottom:12px}
+.fg label{display:block;font-size:9px;color:var(--t2);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
+.fg input,.fg select,.fg textarea{width:100%;padding:9px 10px;border:1px solid var(--brd);border-radius:var(--rds-sm);background:var(--bg);color:var(--tx);font-size:14px;outline:none;font-family:inherit;-webkit-appearance:none}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--bl)}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{padding:11px 20px;border-radius:var(--rds-sm);font-size:14px;font-weight:600;cursor:pointer;border:none;transition:opacity .15s;-webkit-tap-highlight-color:transparent}
+.btn:active{opacity:.8}
+.btn-p{width:100%;background:var(--bl);color:#fff}
+.btn-c{background:var(--brd);color:var(--tx);width:100%;margin-top:6px}
+
+/* Toast */
+.toast{position:fixed;top:calc(12px + var(--st));left:50%;transform:translateX(-50%);background:var(--g);color:#0d1117;padding:8px 18px;border-radius:18px;font-size:12px;font-weight:600;z-index:999;animation:toastIn .3s,toastOut .25s 2s forwards;white-space:nowrap}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(-50%) translateY(-10px)}}
+
+/* Empty */
+.empty{text-align:center;padding:50px 20px;color:var(--t2)}
+.empty-icon{font-size:40px;margin-bottom:8px}
+.empty-text{font-size:13px;line-height:1.5}
+
+@media(min-width:500px){.modal{border-radius:var(--rds);margin-bottom:40px}.modal-overlay{align-items:center}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1 id="pageTitle">💳 信用卡</h1>
+    <span class="header-date" id="todayStr"></span>
+  </div>
+
+  <!-- Tab 1: 信用卡 -->
+  <div class="page active" id="page-credit">
+    <div class="summary cols3" id="creditSummary"></div>
+    <div class="filter-bar" id="creditFilter"></div>
+    <div id="creditList"></div>
+    <div class="empty" id="creditEmpty" style="display:none"><div class="empty-icon">💳</div><div class="empty-text">暂无信用卡<br>点击右下角 + 添加</div></div>
+  </div>
+
+  <!-- Tab 2: 资产 -->
+  <div class="page" id="page-assets">
+    <div class="section-title">📈 资产负债</div>
+    <div class="summary cols2" id="assetSummary"></div>
+    <div class="section-title">💵 资产账户</div>
+    <div id="accountList"></div>
+    <div class="empty" id="accountEmpty" style="display:none"><div class="empty-icon">🏦</div><div class="empty-text">暂无资产账户</div></div>
+    <div class="section-title">📉 负债</div>
+    <div id="debtList"></div>
+    <div class="empty" id="debtEmpty" style="display:none"><div class="empty-icon">📄</div><div class="empty-text">暂无负债记录</div></div>
+  </div>
+
+  <!-- Tab 3: 流水 -->
+  <div class="page" id="page-transactions">
+    <div class="summary cols2" id="txSummary"></div>
+    <div id="txList"></div>
+    <div class="empty" id="txEmpty" style="display:none"><div class="empty-icon">📝</div><div class="empty-text">暂无消费记录</div></div>
+  </div>
+
+  <!-- Tab 4: 总览 -->
+  <div class="page" id="page-overview">
+    <div class="summary cols2" id="overviewSummary"></div>
+    <div class="section-title">📊 本月支出分类</div>
+    <div id="categoryBreakdown"></div>
+    <div class="section-title">⚠️ 近期待还</div>
+    <div id="upcomingDues"></div>
+  </div>
+</div>
+
+<!-- Bottom Tab Bar -->
+<nav class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('credit')"><span class="tab-icon">💳</span><span class="tab-label">信用卡</span></button>
+  <button class="tab-btn" onclick="switchTab('assets')"><span class="tab-icon">💰</span><span class="tab-label">资产</span></button>
+  <button class="tab-btn" onclick="switchTab('transactions')"><span class="tab-icon">📝</span><span class="tab-label">流水</span></button>
+  <button class="tab-btn" onclick="switchTab('overview')"><span class="tab-icon">📊</span><span class="tab-label">总览</span></button>
+</nav>
+
+<!-- FAB -->
+<button class="fab" id="fab" onclick="openAddForTab()">+</button>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+// ═══════════════════════ IndexedDB ═══════════════════════
+const DB_NAME='FinanceHub',DB_VER=2;
+function openDB(){return new Promise((r,j)=>{const q=indexedDB.open(DB_NAME,DB_VER);q.onupgradeneeded=e=>{const d=e.target.result;['cards','accounts','debts','transactions'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'})})};q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)})}
+async function getAll(store){const d=await openDB();return new Promise(r=>{const t=d.transaction(store,'readonly'),a=t.objectStore(store).getAll();a.onsuccess=()=>r(a.result||[]);a.onerror=()=>r([])})}
+async function saveAll(store,items){const d=await openDB();return new Promise(r=>{const t=d.transaction(store,'readwrite'),s=t.objectStore(store);s.clear();for(const i of items)s.put(i);t.oncomplete=()=>r();t.onerror=()=>r()})}
+async function putOne(store,item){const d=await openDB();return new Promise(r=>{const t=d.transaction(store,'readwrite');t.objectStore(store).put(item);t.oncomplete=()=>r();t.onerror=()=>r()})}
+async function delOne(store,id){const d=await openDB();return new Promise(r=>{const t=d.transaction(store,'readwrite');t.objectStore(store).delete(id);t.oncomplete=()=>r();t.onerror=()=>r()})}
+
+// 种子数据迁移
+(async function seed(){
+  const cards=await getAll('cards');
+  if(!cards.length){
+    const now=new Date().toISOString();
+    await saveAll('cards',[
+      {id:'s1',bank_name:'招商银行',card_name:'经典白金卡',card_tail:'8888',credit_limit:100000,bill_day:10,due_day:28,notes:'主力消费卡',created_at:now},
+      {id:'s2',bank_name:'中信银行',card_name:'i白金卡',card_tail:'6666',credit_limit:80000,bill_day:1,due_day:20,notes:'备用卡',created_at:now},
+      {id:'s3',bank_name:'浦发银行',card_name:'AE白金卡',card_tail:'9999',credit_limit:150000,bill_day:25,due_day:30,notes:'境外消费主力',created_at:now},
+    ]);
+    await saveAll('accounts',[{id:'a1',name:'工资卡',type:'savings',balance:50000,bank_name:'招商银行',card_tail:'1234',notes:'',created_at:now}]);
+    await saveAll('debts',[{id:'d1',name:'房贷',type:'mortgage',total_amount:2000000,remaining:1500000,monthly_payment:12000,due_day:15,creditor:'招商银行',notes:'30年期',created_at:now}]);
+    await saveAll('transactions',[
+      {id:'t1',date:'2026-06-20',amount:128.5,category:'餐饮',description:'周末聚餐',account_id:'a1',type:'expense',created_at:now},
+      {id:'t2',date:'2026-06-22',amount:3500,category:'购物',description:'618促销',account_id:'a1',type:'expense',created_at:now},
+      {id:'t3',date:'2026-06-24',amount:89,category:'交通',description:'打车',account_id:'a1',type:'expense',created_at:now},
+    ]);
+  }
+})();
+
+// ═══════════════════════ 工具函数 ═══════════════════════
+const $=s=>document.querySelector(s);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const fmt= n=>Number(n||0).toLocaleString();
+const dtFmt=d=>{const x=new Date(d);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`};
+
+// ═══════════════════════ Tab 切换 ═══════════════════════
+let currentTab='credit';
+async function switchTab(t){
+  currentTab=t;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+t).classList.add('active');
+  document.querySelector(`.tab-btn[onclick*="${t}"]`).classList.add('active');
+
+  const titles={credit:'💳 信用卡',assets:'💰 资产负债',transactions:'📝 消费流水',overview:'📊 财务总览'};
+  $('#pageTitle').innerHTML=titles[t];
+  $('#fab').style.display=(t==='overview')?'none':'flex';
+
+  if(t==='credit')await renderCredit();
+  else if(t==='assets')await renderAssets();
+  else if(t==='transactions')await renderTransactions();
+  else if(t==='overview')await renderOverview();
+}
+
+function openAddForTab(){
+  if(currentTab==='credit')showCreditForm();
+  else if(currentTab==='assets')showAssetMenu();
+  else if(currentTab==='transactions')showTxForm();
+}
+
+// ═══════════════════════ 日期计算 ═══════════════════════
+function clampDay(y,m,d){const max=new Date(y,m,0).getDate();return Math.min(d,max)}
+function nextMonthDate(y,m,d){const nm=m===12?1:m+1,ny=m===12?y+1:y;return new Date(ny,nm-1,clampDay(ny,nm,d))}
+function calcDates(billDay,dueDay){
+  const today=new Date();today.setHours(0,0,0,0);
+  const y=today.getFullYear(),m=today.getMonth()+1;
+  const bd=clampDay(y,m,billDay);let nb=new Date(y,m-1,bd);
+  if(nb<=today)nb=nextMonthDate(y,m,billDay);
+  const by=nb.getFullYear(),bm=nb.getMonth()+1;nb.setHours(0,0,0,0);
+  let nd=nextMonthDate(by,bm,dueDay);
+  if(nd<=nb)nd=nextMonthDate(nd.getFullYear(),nd.getMonth()+1,dueDay);
+  nd.setHours(0,0,0,0);return{nb,nd};
+}
+function daysBetween(a,b){return Math.round((b-a)/(86400000))}
+function cardStatus(billDay,dueDay){
+  const today=new Date();today.setHours(0,0,0,0);
+  const{nb,nd}=calcDates(billDay,dueDay);
+  const dtb=daysBetween(today,nb),dtd=daysBetween(today,nd);
+  let bu='normal';if(dtb>=0&&dtb<=2)bu='urgent';else if(dtb>=0&&dtb<=7)bu='warning';
+  let du='normal';if(dtd>=0&&dtd<=3)du='urgent';else if(dtd>=0&&dtd<=7)du='warning';
+  const y=today.getFullYear(),m=today.getMonth()+1;
+  const pm=m===1?12:m-1,py=m===1?y-1:y;
+  const pb=new Date(py,pm-1,clampDay(py,pm,billDay));
+  return{nextBill:dtFmt(nb),nextDue:dtFmt(nd),daysToBill:dtb,daysToDue:dtd,billUrgency:bu,dueUrgency:du,inBillingCycle:today>pb&&today<=nd,maxFree:daysBetween(nb,nd)};
+}
+
+// ═══════════════════════ 模态框 ═══════════════════════
+function showModal(html){$('#modalContent').innerHTML=html;$('#modal').style.display='flex'}
+function closeModal(){$('#modal').style.display='none'}
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2400)}
+
+// ═══════════════════════ 1. 信用卡板块 ═══════════════════════
+let creditFilter='all',expandedCards=new Set();
+function noBubble(e){e.stopPropagation()}
+function toggleCard(id){if(expandedCards.has(id))expandedCards.delete(id);else expandedCards.add(id);renderCredit()}
+function setCreditFilter(f){creditFilter=f;renderCredit()}
+
+async function renderCredit(){
+  const cards=await getAll('cards');
+  if(!cards.length){$('#creditSummary').innerHTML='';$('#creditFilter').innerHTML='';$('#creditList').innerHTML='';$('#creditEmpty').style.display='block';return}
+  $('#creditEmpty').style.display='none';
+  const enriched=cards.map(c=>({...c,...cardStatus(c.bill_day,c.due_day)}));
+  enriched.sort((a,b)=>{const rk=c=>c.dueUrgency==='urgent'?0:c.billUrgency==='urgent'?1:c.dueUrgency==='warning'?2:c.billUrgency==='warning'?3:4;return rk(a)-rk(b)||a.daysToDue-b.daysToDue});
+
+  const urgents=enriched.filter(c=>c.dueUrgency==='urgent'||c.billUrgency==='urgent');
+  const warnings=enriched.filter(c=>!urgents.includes(c)&&(c.dueUrgency==='warning'||c.billUrgency==='warning'));
+  const normals=enriched.filter(c=>!urgents.includes(c)&&!warnings.includes(c));
+  const totalLimit=cards.reduce((s,c)=>s+(c.credit_limit||0),0);
+
+  $('#creditSummary').innerHTML=`
+    <div class="stat-card tap ${creditFilter==='urgent'?'active':''}" onclick="setCreditFilter('${creditFilter==='urgent'?'all':'urgent'}')">
+      <div class="stat-num" style="color:var(--r)">${urgents.length}</div><div class="stat-label">🔴 紧急</div>
+    </div>
+    <div class="stat-card tap ${creditFilter==='warning'?'active':''}" onclick="setCreditFilter('${creditFilter==='warning'?'all':'warning'}')">
+      <div class="stat-num" style="color:var(--o)">${warnings.length}</div><div class="stat-label">🟡 关注</div>
+    </div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--g)">${(totalLimit/10000).toFixed(0)}万</div><div class="stat-label">总额度</div></div>
+  `;
+
+  $('#creditFilter').innerHTML=`
+    <button class="filter-chip ${creditFilter==='all'?'active':''}" onclick="setCreditFilter('all')">全部<span class="chip-badge">${enriched.length}</span></button>
+    <button class="filter-chip ${creditFilter==='urgent'?'active':''}" onclick="setCreditFilter('urgent')">🔴紧急<span class="chip-badge">${urgents.length}</span></button>
+    <button class="filter-chip ${creditFilter==='warning'?'active':''}" onclick="setCreditFilter('warning')">🟡关注<span class="chip-badge">${warnings.length}</span></button>
+    <button class="filter-chip ${creditFilter==='normal'?'active':''}" onclick="setCreditFilter('normal')">🟢正常<span class="chip-badge">${normals.length}</span></button>
+  `;
+
+  const displayed=enriched.filter(c=>creditFilter==='all'?true:creditFilter==='urgent'?urgents.includes(c):creditFilter==='warning'?warnings.includes(c):normals.includes(c));
+
+  $('#creditList').innerHTML=displayed.map(c=>{
+    const exp=expandedCards.has(c.id);
+    let ic='';if(c.dueUrgency==='urgent'||c.billUrgency==='urgent')ic='urgent';else if(c.dueUrgency==='warning'||c.billUrgency==='warning')ic='warning';
+    let bt,bc;if(c.daysToBill===0){bt='今天';bc='urgent'}else if(c.daysToBill<0){bt='已过';bc=''}else{bt=c.daysToBill+'天';bc=c.billUrgency==='urgent'?'urgent':c.billUrgency==='warning'?'warning':'safe'}
+    let dt,dc;if(c.daysToDue===0){dt='今天！';dc='urgent'}else if(c.daysToDue<0){dt='已逾期';dc='urgent'}else{dt=c.daysToDue+'天';dc=c.dueUrgency==='urgent'?'urgent':c.dueUrgency==='warning'?'warning':'safe'}
+    const ct=c.maxFree||25,cp=ct-Math.max(0,c.daysToDue),cpp=Math.min(100,Math.max(0,cp/ct*100));
+    let tip='';if(c.daysToDue<=3&&c.daysToDue>=0)tip=`<div class="card-tip t-r">⚠️ 还款日${c.daysToDue===0?'就在今天':`还剩${c.daysToDue}天`}，请确保余额充足</div>`;else if(c.daysToDue<0)tip='<div class="card-tip t-r">🚨 已逾期！请立即还款避免影响征信</div>';else if(c.daysToBill<=2&&c.daysToBill>=0)tip=`<div class="card-tip t-b">📋 出账日临近，大额消费建议出账日后，最长${c.maxFree}天免息</div>`;else if(c.inBillingCycle&&c.daysToDue>7)tip='<div class="card-tip t-b">💡 已出账待还款，当前消费将计入下期</div>';else if(!c.inBillingCycle)tip=`<div class="card-tip t-g">✨ 免息期充足，距出账日还有${c.daysToBill}天</div>`;
+    return`<div class="card-item ${ic} ${exp?'expanded':''}" onclick="toggleCard('${c.id}')">
+      <span class="expand-icon">${exp?'▲':'▼'}</span>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><div class="card-bank">${c.dueUrgency==='urgent'?'🔴 ':c.billUrgency==='urgent'?'🟠 ':c.dueUrgency==='warning'?'🟡 ':''}${esc(c.bank_name)}</div><div class="card-name">${esc(c.card_name)}</div>${c.card_tail?`<div class="card-tail">···· ${esc(c.card_tail)}</div>`:''}</div>
+        <div class="card-actions"><button class="btn-sm" onclick="noBubble(event);editCredit('${c.id}')">✎</button><button class="btn-sm danger" onclick="noBubble(event);deleteCredit('${c.id}','${esc(c.bank_name)} ${esc(c.card_name)}')">✕</button></div>
+      </div>
+      <div class="card-dates">
+        <div class="date-block"><div class="date-label">📋 出账日 · 每月${c.bill_day}日</div><div class="date-value">→ ${c.nextBill}</div><div class="date-countdown ${bc}">${bt}</div></div>
+        <div class="date-block"><div class="date-label">💰 还款日 · 每月${c.due_day}日</div><div class="date-value">→ ${c.nextDue}</div><div class="date-countdown ${dc}">${dt}</div></div>
+      </div>${tip}
+      <div class="card-detail">
+        <div class="cycle-bar"><div class="cycle-bar-fill" style="width:${cpp}%"></div></div>
+        <div class="cycle-info"><span>出账 ${c.nextBill}</span><span>周期${ct}天</span><span>还款 ${c.nextDue}</span></div>
+        ${c.credit_limit?`<div style="font-size:12px;color:var(--go);margin-top:6px">额度 ¥${fmt(c.credit_limit)}</div>`:''}
+        ${c.notes?`<div style="font-size:10px;color:var(--t2);margin-top:4px">📝 ${esc(c.notes)}</div>`:''}
+      </div>${!exp?'<div class="tap-hint">点击查看详情</div>':''}
+    </div>`;
+  }).join('');
+}
+
+function showCreditForm(id){
+  const isEdit=!!id;
+  let formHTML=`<h2>${isEdit?'编辑':'添加'}信用卡</h2><form onsubmit="saveCredit(event${id?`,'${id}'`:''})"><div class="fg"><label>发卡银行</label><input type="text" id="cfBank" placeholder="如：招商银行" required></div><div class="fg"><label>卡片名称</label><input type="text" id="cfName" placeholder="如：经典白金卡" required></div><div class="fg-row"><div class="fg"><label>卡号后四位</label><input type="text" id="cfTail" placeholder="1234" maxlength="4"></div><div class="fg"><label>额度（元）</label><input type="number" id="cfLimit" placeholder="如：80000" step="1" min="0"></div></div><div class="fg-row"><div class="fg"><label>出账日</label><input type="number" id="cfBill" min="1" max="31" required></div><div class="fg"><label>还款日</label><input type="number" id="cfDue" min="1" max="31" required></div></div><div class="fg"><label>备注</label><textarea id="cfNotes" rows="2" placeholder="选填"></textarea></div><button class="btn btn-p">保存</button><button type="button" class="btn btn-c" onclick="closeModal()">取消</button></form>`;
+  showModal(formHTML);
+  if(isEdit)fillCreditForm(id);
+}
+
+async function fillCreditForm(id){const cards=await getAll('cards');const c=cards.find(x=>x.id===id);if(!c)return;$('#cfBank').value=c.bank_name;$('#cfName').value=c.card_name;$('#cfTail').value=c.card_tail||'';$('#cfLimit').value=c.credit_limit||'';$('#cfBill').value=c.bill_day;$('#cfDue').value=c.due_day;$('#cfNotes').value=c.notes||''}
+
+async function saveCredit(e,editId){
+  e.preventDefault();
+  const data={id:editId||uid(),bank_name:$('#cfBank').value.trim(),card_name:$('#cfName').value.trim(),card_tail:$('#cfTail').value.trim(),credit_limit:parseFloat($('#cfLimit').value)||0,bill_day:parseInt($('#cfBill').value),due_day:parseInt($('#cfDue').value),notes:$('#cfNotes').value.trim(),created_at:new Date().toISOString()};
+  if(editId){const cards=await getAll('cards');const idx=cards.findIndex(c=>c.id===editId);if(idx>=0){cards[idx]={...cards[idx],...data};await saveAll('cards',cards)}}
+  else{await putOne('cards',data)}
+  closeModal();renderCredit();toast(editId?'已更新':'已添加');
+}
+
+async function editCredit(id){showCreditForm(id)}
+async function deleteCredit(id,name){if(!confirm(`删除「${name}」？`))return;await delOne('cards',id);renderCredit();toast('已删除')}
+
+// ═══════════════════════ 2. 资产板块 ═══════════════════════
+async function renderAssets(){
+  const [accounts,debts]=await Promise.all([getAll('accounts'),getAll('debts')]);
+  const totalAssets=accounts.reduce((s,a)=>s+(a.balance||0),0);
+  const totalDebts=debts.reduce((s,d)=>s+(d.remaining||0),0);
+  const netWorth=totalAssets-totalDebts;
+  const debtThisMonth=debts.reduce((s,d)=>s+(d.monthly_payment||0),0);
+
+  $('#assetSummary').innerHTML=`
+    <div class="stat-card"><div class="stat-num" style="color:var(--g)">¥${fmt(totalAssets)}</div><div class="stat-label">总资产</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--r)">¥${fmt(totalDebts)}</div><div class="stat-label">总负债</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:${netWorth>=0?'var(--g)':'var(--r)'}">¥${fmt(netWorth)}</div><div class="stat-label">净资产</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--o)">¥${fmt(debtThisMonth)}</div><div class="stat-label">月还款额</div></div>
+  `;
+
+  // 资产账户
+  if(!accounts.length){$('#accountList').innerHTML='';$('#accountEmpty').style.display='block'}
+  else{$('#accountEmpty').style.display='none';$('#accountList').innerHTML=accounts.map(a=>`<div class="list-item"><div class="item-row"><div class="item-left"><div class="item-tag">${a.type==='savings'?'储蓄卡':a.type==='cash'?'现金':a.type==='investment'?'投资':'其他'}</div><div class="item-name">${esc(a.name)}</div><div class="item-sub">${esc(a.bank_name||'')} ${a.card_tail?`····${a.card_tail}`:''}</div></div><div class="item-right"><div class="item-amount pos">¥${fmt(a.balance)}</div></div><div class="item-actions"><button class="btn-sm" onclick="editAccount('${a.id}')">✎</button><button class="btn-sm danger" onclick="deleteAccount('${a.id}','${esc(a.name)}')">✕</button></div></div></div>`).join('')}
+
+  // 负债
+  if(!debts.length){$('#debtList').innerHTML='';$('#debtEmpty').style.display='block'}
+  else{$('#debtEmpty').style.display='none';$('#debtList').innerHTML=debts.map(d=>`<div class="list-item"><div class="item-row"><div class="item-left"><div class="item-tag">${d.type==='mortgage'?'🏠 房贷':d.type==='car_loan'?'🚗 车贷':d.type==='personal_loan'?'👤 借款':'📋 其他'}</div><div class="item-name">${esc(d.name)}</div><div class="item-sub">${esc(d.creditor)} · 月供 ¥${fmt(d.monthly_payment)} · 每月${d.due_day}日</div></div><div class="item-right"><div class="item-amount neg">¥${fmt(d.remaining)}</div><div style="font-size:10px;color:var(--t2);margin-top:1px">剩余</div></div><div class="item-actions"><button class="btn-sm" onclick="editDebt('${d.id}')">✎</button><button class="btn-sm danger" onclick="deleteDebt('${d.id}','${esc(d.name)}')">✕</button></div></div></div>`).join('')}
+}
+
+function showAssetMenu(){
+  showModal(`<h2>添加资产 / 负债</h2>
+    <button class="btn btn-p" style="margin-bottom:8px;background:var(--g)" onclick="closeModal();showAccountForm()">💵 添加资产账户</button>
+    <button class="btn btn-p" style="background:var(--r)" onclick="closeModal();showDebtForm()">📉 添加负债</button>
+    <button class="btn btn-c" onclick="closeModal()">取消</button>`);
+}
+
+function showAccountForm(id){const isEdit=!!id;let h=`<h2>${isEdit?'编辑':'添加'}资产账户</h2><form onsubmit="saveAccount(event${id?`,'${id}'`:''})"><div class="fg"><label>账户名称</label><input type="text" id="acName" placeholder="如：工资卡" required></div><div class="fg"><label>类型</label><select id="acType"><option value="savings">储蓄卡</option><option value="cash">现金</option><option value="investment">投资账户</option><option value="other">其他</option></select></div><div class="fg-row"><div class="fg"><label>余额</label><input type="number" id="acBal" placeholder="0" step="0.01" required></div><div class="fg"><label>开户银行</label><input type="text" id="acBank" placeholder="选填"></div></div><div class="fg-row"><div class="fg"><label>卡号后四位</label><input type="text" id="acTail" placeholder="1234" maxlength="4"></div><div class="fg"><label>备注</label><input type="text" id="acNotes" placeholder="选填"></div></div><button class="btn btn-p">保存</button><button type="button" class="btn btn-c" onclick="closeModal()">取消</button></form>`;showModal(h);if(isEdit)fillAccountForm(id)}
+function showDebtForm(id){const isEdit=!!id;let h=`<h2>${isEdit?'编辑':'添加'}负债</h2><form onsubmit="saveDebt(event${id?`,'${id}'`:''})"><div class="fg"><label>负债名称</label><input type="text" id="dbName" placeholder="如：房贷" required></div><div class="fg"><label>类型</label><select id="dbType"><option value="mortgage">房贷</option><option value="car_loan">车贷</option><option value="personal_loan">借款</option><option value="other">其他</option></select></div><div class="fg-row"><div class="fg"><label>总额</label><input type="number" id="dbTotal" placeholder="0" step="0.01"></div><div class="fg"><label>剩余待还</label><input type="number" id="dbRemain" placeholder="0" step="0.01" required></div></div><div class="fg-row"><div class="fg"><label>月还款额</label><input type="number" id="dbMonthly" placeholder="0" step="0.01"></div><div class="fg"><label>还款日</label><input type="number" id="dbDueDay" min="1" max="31" placeholder="1"></div></div><div class="fg-row"><div class="fg"><label>债权人</label><input type="text" id="dbCreditor" placeholder="选填"></div><div class="fg"><label>备注</label><input type="text" id="dbNotes" placeholder="选填"></div></div><button class="btn btn-p">保存</button><button type="button" class="btn btn-c" onclick="closeModal()">取消</button></form>`;showModal(h);if(isEdit)fillDebtForm(id)}
+
+async function fillAccountForm(id){const a=(await getAll('accounts')).find(x=>x.id===id);if(!a)return;$('#acName').value=a.name;$('#acType').value=a.type;$('#acBal').value=a.balance;$('#acBank').value=a.bank_name||'';$('#acTail').value=a.card_tail||'';$('#acNotes').value=a.notes||''}
+async function fillDebtForm(id){const d=(await getAll('debts')).find(x=>x.id===id);if(!d)return;$('#dbName').value=d.name;$('#dbType').value=d.type;$('#dbTotal').value=d.total_amount||'';$('#dbRemain').value=d.remaining;$('#dbMonthly').value=d.monthly_payment||'';$('#dbDueDay').value=d.due_day||'';$('#dbCreditor').value=d.creditor||'';$('#dbNotes').value=d.notes||''}
+
+async function saveAccount(e,editId){e.preventDefault();const d={id:editId||uid(),name:$('#acName').value.trim(),type:$('#acType').value,bank_name:$('#acBank').value.trim(),card_tail:$('#acTail').value.trim(),balance:parseFloat($('#acBal').value)||0,notes:$('#acNotes').value.trim(),created_at:new Date().toISOString()};if(editId){const a=await getAll('accounts');const i=a.findIndex(x=>x.id===editId);if(i>=0){a[i]={...a[i],...d};await saveAll('accounts',a)}}else await putOne('accounts',d);closeModal();renderAssets();toast('已保存')}
+async function saveDebt(e,editId){e.preventDefault();const d={id:editId||uid(),name:$('#dbName').value.trim(),type:$('#dbType').value,total_amount:parseFloat($('#dbTotal').value)||0,remaining:parseFloat($('#dbRemain').value)||0,monthly_payment:parseFloat($('#dbMonthly').value)||0,due_day:parseInt($('#dbDueDay').value)||0,creditor:$('#dbCreditor').value.trim(),notes:$('#dbNotes').value.trim(),created_at:new Date().toISOString()};if(editId){const a=await getAll('debts');const i=a.findIndex(x=>x.id===editId);if(i>=0){a[i]={...a[i],...d};await saveAll('debts',a)}}else await putOne('debts',d);closeModal();renderAssets();toast('已保存')}
+async function editAccount(id){showAccountForm(id)}async function editDebt(id){showDebtForm(id)}
+async function deleteAccount(id,n){if(!confirm(`删除「${n}」？`))return;await delOne('accounts',id);renderAssets();toast('已删除')}
+async function deleteDebt(id,n){if(!confirm(`删除「${n}」？`))return;await delOne('debts',id);renderAssets();toast('已删除')}
+
+// ═══════════════════════ 3. 消费流水 ═══════════════════════
+const CATEGORIES=['餐饮','交通','购物','住房','娱乐','医疗','教育','通讯','服饰','日用','人情','其他'];
+async function renderTransactions(){
+  const txs=await getAll('transactions');
+  txs.sort((a,b)=>b.date.localeCompare(a.date)); // 最新在前
+  if(!txs.length){$('#txSummary').innerHTML='';$('#txList').innerHTML='';$('#txEmpty').style.display='block';return}
+  $('#txEmpty').style.display='none';
+
+  const now=new Date();const thisMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const monthTxs=txs.filter(t=>t.date.startsWith(thisMonth));
+  const monthExp=monthTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+(t.amount||0),0);
+  const monthInc=monthTxs.filter(t=>t.type==='income').reduce((s,t)=>s+(t.amount||0),0);
+
+  $('#txSummary').innerHTML=`
+    <div class="stat-card"><div class="stat-num" style="color:var(--r)">¥${fmt(monthExp)}</div><div class="stat-label">本月支出</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--g)">¥${fmt(monthInc)}</div><div class="stat-label">本月收入</div></div>
+  `;
+
+  let lastDate='';
+  $('#txList').innerHTML=txs.map(t=>{
+    const isIncome=t.type==='income';
+    let dateSep='';
+    if(t.date!==lastDate){dateSep=`<div style="font-size:10px;color:var(--t2);padding:8px 0 4px">${t.date} ${['日','一','二','三','四','五','六'][new Date(t.date).getDay()]}</div>`;lastDate=t.date}
+    return dateSep+`<div class="list-item" style="padding:10px 12px"><div class="item-row">
+      <div class="item-left"><div class="item-name" style="font-size:14px">${esc(t.description||t.category)}</div><div class="item-sub">${esc(t.category)} ${t.account_id?'· '+esc(t.account_id):''}</div></div>
+      <div class="item-right"><div class="item-amount ${isIncome?'pos':'neg'}">${isIncome?'+':'-'}¥${fmt(t.amount)}</div></div>
+      <div class="item-actions"><button class="btn-sm danger" onclick="deleteTx('${t.id}','${esc(t.description||t.category)}')">✕</button></div>
+    </div></div>`;
+  }).join('');
+}
+
+function showTxForm(){
+  const now=dtFmt(new Date());
+  showModal(`<h2>记一笔</h2><form onsubmit="saveTx(event)"><div class="fg"><label>类型</label><select id="txType"><option value="expense">支出</option><option value="income">收入</option></select></div><div class="fg-row"><div class="fg"><label>金额</label><input type="number" id="txAmount" placeholder="0" step="0.01" required></div><div class="fg"><label>日期</label><input type="date" id="txDate" value="${now}" required></div></div><div class="fg"><label>分类</label><select id="txCat">${CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select></div><div class="fg"><label>备注</label><input type="text" id="txDesc" placeholder="如：午餐"></div><button class="btn btn-p">保存</button><button type="button" class="btn btn-c" onclick="closeModal()">取消</button></form>`);
+}
+
+async function saveTx(e){
+  e.preventDefault();
+  const d={id:uid(),date:$('#txDate').value,amount:parseFloat($('#txAmount').value)||0,category:$('#txCat').value,description:$('#txDesc').value.trim()||$('#txCat').value,account_id:'',type:$('#txType').value,created_at:new Date().toISOString()};
+  await putOne('transactions',d);closeModal();renderTransactions();toast('已记录');
+}
+async function deleteTx(id,n){if(!confirm(`删除「${n}」记录？`))return;await delOne('transactions',id);renderTransactions();toast('已删除')}
+
+// ═══════════════════════ 4. 总览 ═══════════════════════
+async function renderOverview(){
+  const [cards,accounts,debts,txs]=await Promise.all([getAll('cards'),getAll('accounts'),getAll('debts'),getAll('transactions')]);
+
+  const totalAssets=accounts.reduce((s,a)=>s+(a.balance||0),0);
+  const totalDebts=debts.reduce((s,d)=>s+(d.remaining||0),0);
+  const totalCredit=cards.reduce((s,c)=>s+(c.credit_limit||0),0);
+  const netWorth=totalAssets-totalDebts;
+
+  const now=new Date();const thisMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const monthTxs=txs.filter(t=>t.date.startsWith(thisMonth));
+  const monthExp=monthTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+(t.amount||0),0);
+  const monthInc=monthTxs.filter(t=>t.type==='income').reduce((s,t)=>s+(t.amount||0),0);
+
+  $('#overviewSummary').innerHTML=`
+    <div class="stat-card"><div class="stat-num" style="color:${netWorth>=0?'var(--g)':'var(--r)'}">¥${fmt(netWorth)}</div><div class="stat-label">净资产</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--r)">¥${fmt(monthExp)}</div><div class="stat-label">本月支出</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--g)">¥${fmt(monthInc)}</div><div class="stat-label">本月收入</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--o)">¥${fmt(totalDebts)}</div><div class="stat-label">总负债</div></div>
+  `;
+
+  // 支出分类
+  const catMap={};monthTxs.filter(t=>t.type==='expense').forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount});
+  const catSorted=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const maxCat=catSorted[0]?catSorted[0][1]:1;
+
+  $('#categoryBreakdown').innerHTML=catSorted.length?catSorted.map(([cat,amt])=>{
+    const pct=Math.round(amt/monthExp*100);
+    return`<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px"><span>${cat}</span><span style="color:var(--r)">¥${fmt(amt)} (${pct}%)</span></div><div style="height:4px;background:var(--brd);border-radius:2px;overflow:hidden"><div style="height:100%;background:var(--bl);border-radius:2px;width:${pct}%"></div></div></div>`;
+  }).join(''):'<div class="empty-text">本月暂无支出记录</div>';
+
+  // 近期待还
+  const enriched=cards.map(c=>({...c,...cardStatus(c.bill_day,c.due_day)}));
+  enriched.sort((a,b)=>a.daysToDue-b.daysToDue);
+  const upcoming=enriched.filter(c=>c.daysToDue>=0&&c.daysToDue<=14).slice(0,5);
+  const debtDues=debts.filter(d=>d.monthly_payment>0).map(d=>{const dd=clampDay(now.getFullYear(),now.getMonth()+1,d.due_day);const dueDt=new Date(now.getFullYear(),now.getMonth(),dd);if(dueDt<=now)dueDt.setMonth(dueDt.getMonth()+1);return{name:d.name,amount:d.monthly_payment,dueDate:dtFmt(dueDt),daysAway:daysBetween(now,dueDt),type:'debt'}});
+
+  let dueHTML='';
+  upcoming.forEach(c=>{
+    dueHTML+=`<div class="list-item ${c.daysToDue<=3?'urgent':c.daysToDue<=7?'warning':''}"><div class="item-row"><div class="item-left"><div class="item-tag">💳 信用卡</div><div class="item-name">${esc(c.bank_name)} ${esc(c.card_name)}</div><div class="item-sub">还款日 ${c.nextDue}</div></div><div class="item-right"><div class="item-amount ${c.daysToDue<=3?'neg':c.daysToDue<=7?'warn':'pos'}" style="font-size:14px">${c.daysToDue===0?'今天':c.daysToDue+'天'}</div></div></div></div>`;
+  });
+  debtDues.forEach(d=>{
+    dueHTML+=`<div class="list-item"><div class="item-row"><div class="item-left"><div class="item-tag">📉 ${esc(d.name)}</div><div class="item-name">月供 ¥${fmt(d.amount)}</div><div class="item-sub">还款日 ${d.dueDate}</div></div><div class="item-right"><div class="item-amount pos" style="font-size:14px">${d.daysAway}天</div></div></div></div>`;
+  });
+
+  $('#upcomingDues').innerHTML=dueHTML||'<div class="empty-text">近期无需还款 🎉</div>';
+}
+
+// ═══════════════════════ 初始化 ═══════════════════════
+(async function init(){
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+  const now=new Date();const week=['日','一','二','三','四','五','六'];
+  $('#todayStr').textContent=`${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} 周${week[now.getDay()]}`;
+  await renderCredit();
+})();
+</script>
+</body>
+</html>
