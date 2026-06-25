@@ -238,7 +238,7 @@ async function delOne(store,id){const d=await openDB();return new Promise(r=>{co
       {id:'s3',bank_name:'浦发银行',card_name:'AE白金卡',card_tail:'9999',credit_limit:150000,bill_day:25,due_day:30,notes:'境外消费主力',created_at:now},
     ]);
     await saveAll('accounts',[{id:'a1',name:'工资卡',type:'savings',balance:50000,bank_name:'招商银行',card_tail:'1234',notes:'',created_at:now}]);
-    await saveAll('debts',[{id:'d1',name:'房贷',type:'mortgage',total_amount:2000000,remaining:1500000,monthly_payment:12000,due_day:15,creditor:'招商银行',notes:'30年期',created_at:now}]);
+    await saveAll('debts',[{id:'d1',name:'房贷',type:'mortgage',total_amount:2000000,remaining:1500000,monthly_payment:12000,due_day:15,end_date:'2046-06-15',creditor:'招商银行',notes:'30年期',created_at:now}]);
     await saveAll('transactions',[
       {id:'t1',date:'2026-06-20',amount:128.5,category:'餐饮',description:'周末聚餐',account_id:'a1',type:'expense',created_at:now},
       {id:'t2',date:'2026-06-22',amount:3500,category:'购物',description:'618促销',account_id:'a1',type:'expense',created_at:now},
@@ -416,8 +416,18 @@ async function renderAssets(){
 
   // 负债
   if(!debts.length){$('#debtList').innerHTML='';$('#debtEmpty').style.display='block'}
-  else{$('#debtEmpty').style.display='none';$('#debtList').innerHTML=debts.map(d=>`<div class="list-item"><div class="item-row"><div class="item-left"><div class="item-tag">${d.type==='mortgage'?'🏠 房贷':d.type==='car_loan'?'🚗 车贷':d.type==='personal_loan'?'👤 借款':'📋 其他'}</div><div class="item-name">${esc(d.name)}</div><div class="item-sub">${esc(d.creditor)} · 月供 ¥${fmt(d.monthly_payment)} · 每月${d.due_day}日</div></div><div class="item-right"><div class="item-amount neg">¥${fmt(d.remaining)}</div><div style="font-size:10px;color:var(--t2);margin-top:1px">剩余</div></div><div class="item-actions"><button class="btn-sm" onclick="editDebt('${d.id}')">✎</button><button class="btn-sm danger" onclick="deleteDebt('${d.id}','${esc(d.name)}')">✕</button></div></div></div>`).join('')}
-}
+  else{$('#debtEmpty').style.display='none';$('#debtList').innerHTML=debts.map(d=>{
+    const today=new Date();today.setHours(0,0,0,0);
+    let endHTML='',endClass='';
+    if(d.end_date){
+      const endDt=new Date(d.end_date+'T00:00:00');
+      const daysLeft=daysBetween(today,endDt);
+      endClass=daysLeft<=30?'urgent':'';
+      endHTML=`<div style="font-size:10px;color:${daysLeft<=30?'var(--r)':daysLeft<=90?'var(--o)':'var(--t2)'};margin-top:2px">⏳ 到期 ${d.end_date} · ${daysLeft<0?'已到期':daysLeft===0?'今天到期':`剩余${daysLeft}天`}</div>`;
+    }
+    return`<div class="list-item ${endClass}"><div class="item-row"><div class="item-left"><div class="item-tag">${d.type==='mortgage'?'🏠 房贷':d.type==='car_loan'?'🚗 车贷':d.type==='personal_loan'?'👤 借款':'📋 其他'}</div><div class="item-name">${esc(d.name)}</div><div class="item-sub">${esc(d.creditor)} · 月供 ¥${fmt(d.monthly_payment)} · 每月${d.due_day}日</div>${endHTML}</div><div class="item-right"><div class="item-amount neg">¥${fmt(d.remaining)}</div><div style="font-size:10px;color:var(--t2);margin-top:1px">剩余</div></div><div class="item-actions"><button class="btn-sm" onclick="editDebt('${d.id}')">✎</button><button class="btn-sm danger" onclick="deleteDebt('${d.id}','${esc(d.name)}')">✕</button></div></div></div>`;
+  }).join('')}
+  }
 
 function showAssetMenu(){
   showModal(`<h2>添加资产 / 负债</h2>
@@ -427,13 +437,13 @@ function showAssetMenu(){
 }
 
 function showAccountForm(id){const isEdit=!!id;let h=`<h2>${isEdit?'编辑':'添加'}资产账户</h2><form onsubmit="saveAccount(event${id?`,'${id}'`:''})"><div class="fg"><label>账户名称</label><input type="text" id="acName" placeholder="如：工资卡" required></div><div class="fg"><label>类型</label><select id="acType"><option value="savings">储蓄卡</option><option value="cash">现金</option><option value="investment">投资账户</option><option value="other">其他</option></select></div><div class="fg-row"><div class="fg"><label>余额</label><input type="number" id="acBal" placeholder="0" step="0.01" required></div><div class="fg"><label>开户银行</label><input type="text" id="acBank" placeholder="选填"></div></div><div class="fg-row"><div class="fg"><label>卡号后四位</label><input type="text" id="acTail" placeholder="1234" maxlength="4"></div><div class="fg"><label>备注</label><input type="text" id="acNotes" placeholder="选填"></div></div><button class="btn btn-p">保存</button><button type="button" class="btn btn-c" onclick="closeModal()">取消</button></form>`;showModal(h);if(isEdit)fillAccountForm(id)}
-function showDebtForm(id){const isEdit=!!id;let h=`<h2>${isEdit?'编辑':'添加'}负债</h2><form onsubmit="saveDebt(event${id?`,'${id}'`:''})"><div class="fg"><label>负债名称</label><input type="text" id="dbName" placeholder="如：房贷" required></div><div class="fg"><label>类型</label><select id="dbType"><option value="mortgage">房贷</option><option value="car_loan">车贷</option><option value="personal_loan">借款</option><option value="other">其他</option></select></div><div class="fg-row"><div class="fg"><label>总额</label><input type="number" id="dbTotal" placeholder="0" step="0.01"></div><div class="fg"><label>剩余待还</label><input type="number" id="dbRemain" placeholder="0" step="0.01" required></div></div><div class="fg-row"><div class="fg"><label>月还款额</label><input type="number" id="dbMonthly" placeholder="0" step="0.01"></div><div class="fg"><label>还款日</label><input type="number" id="dbDueDay" min="1" max="31" placeholder="1"></div></div><div class="fg-row"><div class="fg"><label>债权人</label><input type="text" id="dbCreditor" placeholder="选填"></div><div class="fg"><label>备注</label><input type="text" id="dbNotes" placeholder="选填"></div></div><button class="btn btn-p">保存</button><button type="button" class="btn btn-c" onclick="closeModal()">取消</button></form>`;showModal(h);if(isEdit)fillDebtForm(id)}
+function showDebtForm(id){const isEdit=!!id;let h=`<h2>${isEdit?'编辑':'添加'}负债</h2><form onsubmit="saveDebt(event${id?`,'${id}'`:''})"><div class="fg"><label>负债名称</label><input type="text" id="dbName" placeholder="如：房贷" required></div><div class="fg"><label>类型</label><select id="dbType"><option value="mortgage">房贷</option><option value="car_loan">车贷</option><option value="personal_loan">借款</option><option value="other">其他</option></select></div><div class="fg-row"><div class="fg"><label>总额</label><input type="number" id="dbTotal" placeholder="0" step="0.01"></div><div class="fg"><label>剩余待还</label><input type="number" id="dbRemain" placeholder="0" step="0.01" required></div></div><div class="fg-row"><div class="fg"><label>月还款额</label><input type="number" id="dbMonthly" placeholder="0" step="0.01"></div><div class="fg"><label>月还款日</label><input type="number" id="dbDueDay" min="1" max="31" placeholder="1"></div></div><div class="fg"><label>到期日期（最终还清日）</label><input type="date" id="dbEndDate"></div><div class="fg-row"><div class="fg"><label>债权人</label><input type="text" id="dbCreditor" placeholder="选填"></div><div class="fg"><label>备注</label><input type="text" id="dbNotes" placeholder="选填"></div></div><button class="btn btn-p">保存</button><button type="button" class="btn btn-c" onclick="closeModal()">取消</button></form>`;showModal(h);if(isEdit)fillDebtForm(id)}
 
 async function fillAccountForm(id){const a=(await getAll('accounts')).find(x=>x.id===id);if(!a)return;$('#acName').value=a.name;$('#acType').value=a.type;$('#acBal').value=a.balance;$('#acBank').value=a.bank_name||'';$('#acTail').value=a.card_tail||'';$('#acNotes').value=a.notes||''}
-async function fillDebtForm(id){const d=(await getAll('debts')).find(x=>x.id===id);if(!d)return;$('#dbName').value=d.name;$('#dbType').value=d.type;$('#dbTotal').value=d.total_amount||'';$('#dbRemain').value=d.remaining;$('#dbMonthly').value=d.monthly_payment||'';$('#dbDueDay').value=d.due_day||'';$('#dbCreditor').value=d.creditor||'';$('#dbNotes').value=d.notes||''}
+async function fillDebtForm(id){const d=(await getAll('debts')).find(x=>x.id===id);if(!d)return;$('#dbName').value=d.name;$('#dbType').value=d.type;$('#dbTotal').value=d.total_amount||'';$('#dbRemain').value=d.remaining;$('#dbMonthly').value=d.monthly_payment||'';$('#dbDueDay').value=d.due_day||'';$('#dbEndDate').value=d.end_date||'';$('#dbCreditor').value=d.creditor||'';$('#dbNotes').value=d.notes||''}
 
 async function saveAccount(e,editId){e.preventDefault();const d={id:editId||uid(),name:$('#acName').value.trim(),type:$('#acType').value,bank_name:$('#acBank').value.trim(),card_tail:$('#acTail').value.trim(),balance:parseFloat($('#acBal').value)||0,notes:$('#acNotes').value.trim(),created_at:new Date().toISOString()};if(editId){const a=await getAll('accounts');const i=a.findIndex(x=>x.id===editId);if(i>=0){a[i]={...a[i],...d};await saveAll('accounts',a)}}else await putOne('accounts',d);closeModal();renderAssets();toast('已保存')}
-async function saveDebt(e,editId){e.preventDefault();const d={id:editId||uid(),name:$('#dbName').value.trim(),type:$('#dbType').value,total_amount:parseFloat($('#dbTotal').value)||0,remaining:parseFloat($('#dbRemain').value)||0,monthly_payment:parseFloat($('#dbMonthly').value)||0,due_day:parseInt($('#dbDueDay').value)||0,creditor:$('#dbCreditor').value.trim(),notes:$('#dbNotes').value.trim(),created_at:new Date().toISOString()};if(editId){const a=await getAll('debts');const i=a.findIndex(x=>x.id===editId);if(i>=0){a[i]={...a[i],...d};await saveAll('debts',a)}}else await putOne('debts',d);closeModal();renderAssets();toast('已保存')}
+async function saveDebt(e,editId){e.preventDefault();const d={id:editId||uid(),name:$('#dbName').value.trim(),type:$('#dbType').value,total_amount:parseFloat($('#dbTotal').value)||0,remaining:parseFloat($('#dbRemain').value)||0,monthly_payment:parseFloat($('#dbMonthly').value)||0,due_day:parseInt($('#dbDueDay').value)||0,end_date:$('#dbEndDate').value||'',creditor:$('#dbCreditor').value.trim(),notes:$('#dbNotes').value.trim(),created_at:new Date().toISOString()};if(editId){const a=await getAll('debts');const i=a.findIndex(x=>x.id===editId);if(i>=0){a[i]={...a[i],...d};await saveAll('debts',a)}}else await putOne('debts',d);closeModal();renderAssets();toast('已保存')}
 async function editAccount(id){showAccountForm(id)}async function editDebt(id){showDebtForm(id)}
 async function deleteAccount(id,n){if(!confirm(`删除「${n}」？`))return;await delOne('accounts',id);renderAssets();toast('已删除')}
 async function deleteDebt(id,n){if(!confirm(`删除「${n}」？`))return;await delOne('debts',id);renderAssets();toast('已删除')}
@@ -517,14 +527,20 @@ async function renderOverview(){
   const enriched=cards.map(c=>({...c,...cardStatus(c.bill_day,c.due_day)}));
   enriched.sort((a,b)=>a.daysToDue-b.daysToDue);
   const upcoming=enriched.filter(c=>c.daysToDue>=0&&c.daysToDue<=14).slice(0,5);
-  const debtDues=debts.filter(d=>d.monthly_payment>0).map(d=>{const dd=clampDay(now.getFullYear(),now.getMonth()+1,d.due_day);const dueDt=new Date(now.getFullYear(),now.getMonth(),dd);if(dueDt<=now)dueDt.setMonth(dueDt.getMonth()+1);return{name:d.name,amount:d.monthly_payment,dueDate:dtFmt(dueDt),daysAway:daysBetween(now,dueDt),type:'debt'}});
+  const debtDues=debts.filter(d=>d.monthly_payment>0).map(d=>{const dd=clampDay(now.getFullYear(),now.getMonth()+1,d.due_day);const dueDt=new Date(now.getFullYear(),now.getMonth(),dd);if(dueDt<=now)dueDt.setMonth(dueDt.getMonth()+1);return{name:d.name,amount:d.monthly_payment,dueDate:dtFmt(dueDt),daysAway:daysBetween(now,dueDt),type:'debt-monthly'}});
+  // 负债到期日倒计时（≤30天红色预警）
+  const debtMaturity=debts.filter(d=>d.end_date).map(d=>{const endDt=new Date(d.end_date+'T00:00:00');const days=daysBetween(now,endDt);return{name:d.name,amount:d.remaining,date:d.end_date,days,type:'debt-maturity'};}).filter(d=>d.days<=90).sort((a,b)=>a.days-b.days);
 
   let dueHTML='';
   upcoming.forEach(c=>{
     dueHTML+=`<div class="list-item ${c.daysToDue<=3?'urgent':c.daysToDue<=7?'warning':''}"><div class="item-row"><div class="item-left"><div class="item-tag">💳 信用卡</div><div class="item-name">${esc(c.bank_name)} ${esc(c.card_name)}</div><div class="item-sub">还款日 ${c.nextDue}</div></div><div class="item-right"><div class="item-amount ${c.daysToDue<=3?'neg':c.daysToDue<=7?'warn':'pos'}" style="font-size:14px">${c.daysToDue===0?'今天':c.daysToDue+'天'}</div></div></div></div>`;
   });
   debtDues.forEach(d=>{
-    dueHTML+=`<div class="list-item"><div class="item-row"><div class="item-left"><div class="item-tag">📉 ${esc(d.name)}</div><div class="item-name">月供 ¥${fmt(d.amount)}</div><div class="item-sub">还款日 ${d.dueDate}</div></div><div class="item-right"><div class="item-amount pos" style="font-size:14px">${d.daysAway}天</div></div></div></div>`;
+    dueHTML+=`<div class="list-item"><div class="item-row"><div class="item-left"><div class="item-tag">📉 ${esc(d.name)} · 月供</div><div class="item-name">¥${fmt(d.amount)}</div><div class="item-sub">${d.dueDate}</div></div><div class="item-right"><div class="item-amount pos" style="font-size:14px">${d.daysAway}天</div></div></div></div>`;
+  });
+  debtMaturity.forEach(d=>{
+    const urg=d.days<=30?'urgent':(d.days<=60?'warning':'');
+    dueHTML+=`<div class="list-item ${urg}"><div class="item-row"><div class="item-left"><div class="item-tag">${d.days<=30?'🚨 ':'⏳ '}${esc(d.name)} · 到期</div><div class="item-name">未还 ¥${fmt(d.amount)}</div><div class="item-sub">到期日 ${d.date}</div></div><div class="item-right"><div class="item-amount ${d.days<=30?'neg':d.days<=60?'warn':'pos'}" style="font-size:14px">${d.days<=0?(d.days===0?'今天':'已过'):d.days+'天'}</div></div></div></div>`;
   });
 
   $('#upcomingDues').innerHTML=dueHTML||'<div class="empty-text">近期无需还款 🎉</div>';
