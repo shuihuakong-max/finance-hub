@@ -336,7 +336,7 @@ async function renderCredit(){
     <div class="stat-card tap ${creditFilter==='warning'?'active':''}" onclick="setCreditFilter('${creditFilter==='warning'?'all':'warning'}')">
       <div class="stat-num" style="color:var(--o)">${warnings.length}</div><div class="stat-label">🟡 关注</div>
     </div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--g)">${(totalLimit/10000).toFixed(0)}万</div><div class="stat-label">总额度（去重）</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--g)">¥${fmt(totalLimit)}</div><div class="stat-label">总额度（去重）</div></div>
   `;
 
   $('#creditFilter').innerHTML=`
